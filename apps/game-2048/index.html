@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>2048 小游戏 - WebSnack</title>
+  <link rel="stylesheet" href="/shared/styles/global.css">
+  <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+  <div class="app-container">
+    <div class="app-header">
+      <a href="/" class="back-link">← 返回首页</a>
+      <h1>🎮 2048 小游戏</h1>
+    </div>
+
+    <div class="game-container">
+      <div class="game-header">
+        <div class="score-container">
+          <div class="score-box">
+            <div class="score-label">分数</div>
+            <div class="score-value" id="score">0</div>
+          </div>
+          <div class="score-box">
+            <div class="score-label">最高分</div>
+            <div class="score-value" id="bestScore">0</div>
+          </div>
+        </div>
+        <div class="game-controls">
+          <button id="newGameBtn" class="btn btn-new-game">新游戏</button>
+        </div>
+      </div>
+
+      <div class="game-info" id="gameMessage">
+        使用方向键或滑动来移动方块，相同数字的方块碰撞会合并成它们的和！
+      </div>
+
+      <div class="game-board" id="gameBoard">
+        <!-- 格子会通过 JS 动态生成 -->
+      </div>
+
+      <div class="game-over" id="gameOver" style="display: none;">
+        <div class="game-over-content">
+          <h2>游戏结束！</h2>
+          <p class="final-score">最终得分：<span id="finalScore">0</span></p>
+          <button id="restartBtn" class="btn btn-new-game">再来一局</button>
+        </div>
+      </div>
+
+      <div class="game-win" id="gameWin" style="display: none;">
+        <div class="game-win-content">
+          <h2>🎉 恭喜你赢了！</h2>
+          <p>你成功合成了 2048！</p>
+          <div class="win-buttons">
+            <button id="continueBtn" class="btn btn-secondary">继续游戏</button>
+            <button id="restartWinBtn" class="btn btn-new-game">再来一局</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="game-instructions">
+        <h3>游戏说明：</h3>
+        <ul>
+          <li>使用 <kbd>↑</kbd><kbd>↓</kbd><kbd>←</kbd><kbd>→</kbd> 方向键移动方块</li>
+          <li>移动端可以直接滑动屏幕</li>
+          <li>相同数字的方块碰到一起会合并成为它们的和</li>
+          <li>成功合成 2048 即可获胜</li>
+          <li>棋盘填满无法移动时游戏结束</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="./main.js"></script>
+</body>
+</html>
