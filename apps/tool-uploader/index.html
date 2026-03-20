@@ -17,7 +17,7 @@
     <div class="upload-container">
       <div class="upload-form">
         <div class="form-section">
-          <h2>基本信息</h2>
+          <h2>应用信息</h2>
 
           <div class="form-group">
             <label for="appType">应用分类 *</label>
@@ -26,6 +26,7 @@
               <option value="game">🎮 游戏类</option>
               <option value="tool">🛠️ 工具类</option>
               <option value="app">📱 应用类</option>
+              <option value="ru">🇷🇺 俄语专区</option>
             </select>
           </div>
 
@@ -52,6 +53,7 @@
               <option value="⚡">⚡ 效率</option>
               <option value="📊">📊 数据</option>
               <option value="🔧">🔧 工具</option>
+              <option value="🇷🇺">🇷🇺 俄语</option>
             </select>
           </div>
         </div>
@@ -105,18 +107,10 @@
           </div>
         </div>
 
-        <div class="form-section">
-          <h2>GitHub 配置</h2>
-          <div class="form-group">
-            <label for="githubToken">GitHub Personal Access Token *</label>
-            <input type="password" id="githubToken" placeholder="ghp_xxxxxxxxxxxx" required>
-            <small class="form-hint">需要 repo 权限，仅用于提交文件到仓库，不会被存储</small>
-          </div>
-        </div>
-
         <div class="form-actions">
           <button type="button" id="previewBtn" class="btn btn-secondary">预览效果</button>
-          <button type="button" id="submitBtn" class="btn btn-primary">上传并部署</button>
+          <button type="button" id="submitBtn" class="btn btn-primary">保存到本地</button>
+          <button type="button" id="exportBtn" class="btn btn-secondary">导出应用包</button>
         </div>
 
         <div class="status-message" id="statusMessage" style="display: none;"></div>
@@ -144,13 +138,13 @@
     <div class="success-modal" id="successModal" style="display: none;">
       <div class="modal-content">
         <div class="success-icon">🎉</div>
-        <h2>部署成功！</h2>
-        <p>应用已经成功上传并开始部署</p>
+        <h2>保存成功！</h2>
+        <p>应用已经保存到本地</p>
         <div class="success-links">
-          <a href="" id="appLink" target="_blank" class="btn btn-primary">访问应用</a>
+          <a href="" id="appLink" target="_blank" class="btn btn-primary">立即打开</a>
           <button id="closeModalBtn" class="btn btn-secondary">关闭</button>
         </div>
-        <small>部署大约需要 1-2 分钟后可以访问</small>
+        <small>应用保存在浏览器本地，清除浏览器数据会丢失</small>
       </div>
     </div>
   </div>

@@ -1,5 +1,6 @@
-// 应用上传工具核心逻辑
+// 应用上传工具核心逻辑 - 本地存储版本
 import { generateRandomId } from '@shared/utils/common.js'
+import { saveToLocalStorage, getFromLocalStorage } from '@shared/utils/storage.js'
 
 class AppUploader {
   constructor() {
@@ -9,16 +10,14 @@ class AppUploader {
       js: null,
       assets: []
     }
-    this.githubToken = ''
-    this.repoOwner = 'bigbaitoo'
-    this.repoName = 'WebSnack'
-    this.baseBranch = 'main'
+    this.savedApps = getFromLocalStorage('uploaded_apps', [])
 
     this.init()
   }
 
   init() {
     this.bindEvents()
+    this.loadSavedApps()
   }
 
   bindEvents() {
@@ -50,7 +49,12 @@ class AppUploader {
 
     // 提交按钮
     document.getElementById('submitBtn').addEventListener('click', () => {
-      this.uploadAndDeploy()
+      this.saveApp()
+    })
+
+    // 导出按钮
+    document.getElementById('exportBtn').addEventListener('click', () => {
+      this.exportApp()
     })
 
     // 关闭成功弹窗
@@ -114,58 +118,73 @@ class AppUploader {
     }
   }
 
-  async uploadAndDeploy() {
+  async saveApp() {
     // 验证表单
     const formData = this.validateForm()
     if (!formData) return
 
-    this.githubToken = document.getElementById('githubToken').value.trim()
-    if (!this.githubToken) {
-      this.showStatus('请输入 GitHub Token', 'error')
-      return
-    }
-
     try {
-      this.showProgress('正在准备文件...', 10)
+      this.showProgress('正在处理文件...', 30)
 
-      // 生成应用目录名
+      // 生成应用信息
+      const appId = generateRandomId(8)
       const appDirName = this.generateAppDirName(formData.appType, formData.appName)
 
       // 读取所有文件内容
-      this.showProgress('正在读取文件...', 20)
-      const filesToCommit = await this.prepareFiles(formData, appDirName)
+      this.showProgress('正在读取文件...', 50)
+      const appData = await this.prepareAppData(formData, appId, appDirName)
 
-      // 获取最新的 commit SHA
-      this.showProgress('正在获取仓库信息...', 30)
-      const latestCommitSha = await this.getLatestCommitSha()
+      // 保存到本地存储
+      this.showProgress('正在保存到本地...', 80)
+      this.savedApps.push(appData)
+      saveToLocalStorage('uploaded_apps', this.savedApps)
 
-      // 创建新的 tree
-      this.showProgress('正在创建文件树...', 50)
-      const treeSha = await this.createTree(filesToCommit, latestCommitSha)
-
-      // 创建新的 commit
-      this.showProgress('正在提交文件...', 70)
-      const newCommitSha = await this.createCommit(
-        `feat: 添加新应用 ${formData.appName}`,
-        treeSha,
-        latestCommitSha
-      )
-
-      // 更新分支
-      this.showProgress('正在更新仓库...', 90)
-      await this.updateBranch(newCommitSha)
-
-      // 更新首页导航
-      this.showProgress('正在更新首页导航...', 95)
-      await this.updateHomePageNavigation(formData, appDirName)
+      // 更新首页导航（本地）
+      this.updateLocalNavigation(appData)
 
       this.hideProgress()
-      this.showSuccess(appDirName)
+      this.showSuccess(appData)
 
     } catch (error) {
-      console.error('部署失败:', error)
+      console.error('保存失败:', error)
       this.hideProgress()
-      this.showStatus('部署失败: ' + error.message, 'error')
+      this.showStatus('保存失败: ' + error.message, 'error')
+    }
+  }
+
+  async exportApp() {
+    const formData = this.validateForm()
+    if (!formData) return
+
+    try {
+      this.showProgress('正在打包应用...', 50)
+
+      // 生成应用文件
+      const appId = generateRandomId(8)
+      const appDirName = this.generateAppDirName(formData.appType, formData.appName)
+      const appData = await this.prepareAppData(formData, appId, appDirName)
+
+      // 创建 ZIP 包（这里简化为导出单个 HTML 文件）
+      const fullHtml = appData.files.find(f => f.name === 'index.html').content
+      const blob = new Blob([fullHtml], { type: 'text/html' })
+      const url = URL.createObjectURL(blob)
+
+      // 下载文件
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `${appDirName}.html`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+
+      this.hideProgress()
+      this.showStatus('应用导出成功！', 'success')
+
+    } catch (error) {
+      console.error('导出失败:', error)
+      this.hideProgress()
+      this.showStatus('导出失败: ' + error.message, 'error')
     }
   }
 
@@ -191,7 +210,7 @@ class AppUploader {
     return `${type}-${kebabName}`
   }
 
-  async prepareFiles(formData, appDirName) {
+  async prepareAppData(formData, appId, appDirName) {
     const files = []
 
     // 读取 HTML 文件
@@ -200,10 +219,23 @@ class AppUploader {
     // 注入返回首页链接和公共样式
     const headInject = `
       <link rel="stylesheet" href="../../shared/styles/global.css">
+      <style>
+        .local-app-header {
+          padding: 1rem;
+          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        .local-app-header a {
+          color: white;
+          text-decoration: none;
+          padding: 0.5rem 1rem;
+          background: rgba(255,255,255,0.2);
+          border-radius: 8px;
+        }
+      </style>
     `
     const bodyInject = `
-      <div style="padding: 1rem; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
-        <a href="../../index.html" style="color: white; text-decoration: none; padding: 0.5rem 1rem; background: rgba(255,255,255,0.2); border-radius: 8px;">← 返回首页</a>
+      <div class="local-app-header">
+        <a href="javascript:history.back()">← 返回</a>
       </div>
     `
 
@@ -211,39 +243,35 @@ class AppUploader {
     htmlContent = htmlContent.replace('<body>', `<body>\n${bodyInject}`)
 
     files.push({
-      path: `apps/${appDirName}/index.html`,
-      content: btoa(unescape(encodeURIComponent(htmlContent)))
+      name: 'index.html',
+      content: htmlContent
     })
 
     // CSS 文件
     if (this.files.css) {
       const cssContent = await this.readFileAsText(this.files.css)
       files.push({
-        path: `apps/${appDirName}/style.css`,
-        content: btoa(unescape(encodeURIComponent(cssContent)))
+        name: 'style.css',
+        content: cssContent
       })
 
       // 在 HTML 中引入 CSS
       const cssLink = `<link rel="stylesheet" href="./style.css">`
-      files[0].content = btoa(unescape(encodeURIComponent(
-        htmlContent.replace('</head>', `${cssLink}\n</head>`)
-      )))
+      files[0].content = htmlContent.replace('</head>', `${cssLink}\n</head>`)
     }
 
     // JS 文件
     if (this.files.js) {
       const jsContent = await this.readFileAsText(this.files.js)
       files.push({
-        path: `apps/${appDirName}/main.js`,
-        content: btoa(unescape(encodeURIComponent(jsContent)))
+        name: 'main.js',
+        content: jsContent
       })
 
       // 在 HTML 中引入 JS
       const jsScript = `<script type="module" src="./main.js"></script>`
-      const updatedHtml = atob(files[0].content)
-      files[0].content = btoa(unescape(encodeURIComponent(
-        updatedHtml.replace('</body>', `${jsScript}\n</body>`)
-      )))
+      const updatedHtml = files[0].content
+      files[0].content = updatedHtml.replace('</body>', `${jsScript}\n</body>`)
     }
 
     // 资源文件
@@ -251,150 +279,42 @@ class AppUploader {
       for (const asset of this.files.assets) {
         const content = await this.readFileAsBase64(asset)
         files.push({
-          path: `apps/${appDirName}/assets/${asset.name}`,
-          content: content.split(',')[1] // 去掉 data:image/png;base64, 前缀
+          name: `assets/${asset.name}`,
+          content: content
         })
       }
     }
 
-    return files
-  }
+    // 生成应用访问 URL
+    const appUrl = this.generateLocalAppUrl(appId, files[0].content)
 
-  async updateHomePageNavigation(formData, appDirName) {
-    try {
-      // 获取当前首页内容
-      const response = await fetch(`https://api.github.com/repos/${this.repoOwner}/${this.repoName}/contents/index.html?ref=${this.baseBranch}`, {
-        headers: {
-          'Authorization': `token ${this.githubToken}`,
-          'Accept': 'application/vnd.github.v3+json'
-        }
-      })
-
-      if (!response.ok) throw new Error('获取首页内容失败')
-
-      const data = await response.json()
-      const currentContent = decodeURIComponent(escape(atob(data.content)))
-
-      // 找到对应的分类部分，添加新的应用链接
-      const categoryMap = {
-        'game': '🎮 小游戏',
-        'tool': '🛠️ 工具集',
-        'app': '📱 实用应用'
-      }
-
-      const categoryTitle = categoryMap[formData.appType]
-      const newAppLink = `
-          <a href="apps/${appDirName}/index.html" class="app-card">
-            <div class="app-icon">${formData.appIcon}</div>
-            <div class="app-info">
-              <h3>${formData.appName}</h3>
-              <p>${formData.appDescription}</p>
-            </div>
-          </a>`
-
-      // 插入到对应分类的 app-grid 中
-      const categoryPattern = new RegExp(`(<section class="category">[\\s\\S]*?<h2>${categoryTitle}</h2>[\\s\\S]*?<div class="app-grid">)`)
-      const updatedContent = currentContent.replace(categoryPattern, `$1${newAppLink}`)
-
-      // 提交更新
-      const latestCommitSha = await this.getLatestCommitSha()
-      const treeSha = await this.createTree([{
-        path: 'index.html',
-        content: btoa(unescape(encodeURIComponent(updatedContent)))
-      }], latestCommitSha)
-
-      const newCommitSha = await this.createCommit(
-        `feat: 添加 ${formData.appName} 到首页导航`,
-        treeSha,
-        latestCommitSha
-      )
-
-      await this.updateBranch(newCommitSha)
-
-    } catch (error) {
-      console.warn('更新首页导航失败:', error)
-      // 导航更新失败不影响主流程，只显示警告
+    return {
+      id: appId,
+      name: formData.appName,
+      description: formData.appDescription,
+      icon: formData.appIcon,
+      type: formData.appType,
+      dirName: appDirName,
+      createdAt: new Date().toISOString(),
+      files: files,
+      url: appUrl
     }
   }
 
-  // GitHub API 方法
-  async getLatestCommitSha() {
-    const response = await fetch(`https://api.github.com/repos/${this.repoOwner}/${this.repoName}/git/refs/heads/${this.baseBranch}`, {
-      headers: {
-        'Authorization': `token ${this.githubToken}`,
-        'Accept': 'application/vnd.github.v3+json'
-      }
-    })
-
-    if (!response.ok) throw new Error('获取最新 commit 失败')
-
-    const data = await response.json()
-    return data.object.sha
+  generateLocalAppUrl(appId, htmlContent) {
+    // 生成 blob URL 用于本地访问
+    const blob = new Blob([htmlContent], { type: 'text/html' })
+    return URL.createObjectURL(blob)
   }
 
-  async createTree(files, baseTreeSha) {
-    const tree = files.map(file => ({
-      path: file.path,
-      mode: '100644',
-      type: 'blob',
-      content: file.content
-    }))
-
-    const response = await fetch(`https://api.github.com/repos/${this.repoOwner}/${this.repoName}/git/trees`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `token ${this.githubToken}`,
-        'Accept': 'application/vnd.github.v3+json',
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        base_tree: baseTreeSha,
-        tree: tree
-      })
-    })
-
-    if (!response.ok) throw new Error('创建文件树失败')
-
-    const data = await response.json()
-    return data.sha
+  updateLocalNavigation(appData) {
+    // 这里可以更新本地存储的导航数据
+    // 未来可以在首页显示用户上传的应用
+    console.log('应用已保存到本地:', appData)
   }
 
-  async createCommit(message, treeSha, parentSha) {
-    const response = await fetch(`https://api.github.com/repos/${this.repoOwner}/${this.repoName}/git/commits`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `token ${this.githubToken}`,
-        'Accept': 'application/vnd.github.v3+json',
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        message: message,
-        tree: treeSha,
-        parents: [parentSha]
-      })
-    })
-
-    if (!response.ok) throw new Error('创建 commit 失败')
-
-    const data = await response.json()
-    return data.sha
-  }
-
-  async updateBranch(commitSha) {
-    const response = await fetch(`https://api.github.com/repos/${this.repoOwner}/${this.repoName}/git/refs/heads/${this.baseBranch}`, {
-      method: 'PATCH',
-      headers: {
-        'Authorization': `token ${this.githubToken}`,
-        'Accept': 'application/vnd.github.v3+json',
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        sha: commitSha,
-        force: false
-      })
-    })
-
-    if (!response.ok) throw new Error('更新分支失败')
+  loadSavedApps() {
+    console.log('已保存的应用:', this.savedApps)
   }
 
   // 工具方法
@@ -439,9 +359,8 @@ class AppUploader {
     document.getElementById('progressOverlay').style.display = 'none'
   }
 
-  showSuccess(appDirName) {
-    const appUrl = `https://${this.repoOwner}.github.io/${this.repoName}/apps/${appDirName}/index.html`
-    document.getElementById('appLink').href = appUrl
+  showSuccess(appData) {
+    document.getElementById('appLink').href = appData.url
     document.getElementById('successModal').style.display = 'flex'
   }
 }
@@ -450,4 +369,4 @@ class AppUploader {
 const uploader = new AppUploader()
 
 console.log('应用上传工具已加载 📤')
-console.log('填写表单上传你的 HTML 应用，自动部署到 GitHub Pages！')
+console.log('上传 HTML 应用，保存到本地直接使用！')
