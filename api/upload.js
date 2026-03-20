@@ -34,6 +34,25 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: '缺少必填字段' })
     }
 
+    // 安全检查：验证文件内容
+    const htmlContent = files.html.content
+    if (htmlContent.includes('PCFET0NUWVBFIGh0bWw+') || htmlContent.includes('base64') || htmlContent.length < 50) {
+      return res.status(400).json({ error: 'HTML 文件内容不合法' })
+    }
+
+    // 防止恶意脚本
+    if (htmlContent.includes('<script') && !htmlContent.includes('type="module"') && !htmlContent.includes('src=')) {
+      return res.status(400).json({ error: 'HTML 文件包含不安全的脚本' })
+    }
+
+    // 检查是否包含恶意代码特征
+    const maliciousPatterns = ['eval(', 'atob(', 'btoa(', 'document.write', 'window.location', 'fetch(', 'XMLHttpRequest']
+    for (const pattern of maliciousPatterns) {
+      if (htmlContent.includes(pattern)) {
+        return res.status(400).json({ error: `HTML 文件包含不安全的代码: ${pattern}` })
+      }
+    }
+
     // 生成应用目录名
     const appDirName = generateAppDirName(appType, appName)
     const branchName = `add-app-${appDirName}-${Date.now()}`
@@ -106,7 +125,21 @@ export default async function handler(req, res) {
     })
 
     let indexContent = Buffer.from(indexFile.content, 'base64').toString('utf8')
+
+    // 安全检查：确保首页修改只是添加应用，不会破坏原有结构
+    const originalAppCount = (indexContent.match(/<a href="apps\//g) || []).length
     indexContent = addAppToNavigation(indexContent, appType, appDirName, appName, appDescription, appIcon)
+    const newAppCount = (indexContent.match(/<a href="apps\//g) || []).length
+
+    // 确保只新增了一个应用链接
+    if (newAppCount !== originalAppCount + 1) {
+      throw new Error('首页内容修改异常，拒绝提交')
+    }
+
+    // 确保首页其他结构没有被修改
+    if (!indexContent.includes('<title>WebSnack') || !indexContent.includes('🍿 WebSnack') || !indexContent.includes('🎮 小游戏')) {
+      throw new Error('首页结构被恶意修改，拒绝提交')
+    }
 
     treeItems.push({
       path: 'index.html',
