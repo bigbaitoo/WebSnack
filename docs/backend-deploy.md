@@ -12,15 +12,18 @@
    - 保存好这个 Token，后面会用到
 
 ### 2. 部署到 Vercel（推荐，免费）
-1. 把 `backend` 目录的内容上传到一个新的 GitHub 仓库（或者单独放在当前仓库的 backend 目录）
-2. 登录 [Vercel](https://vercel.com/)，导入你的仓库
-3. 在 Vercel 项目的 Settings → Environment Variables 中添加环境变量：
+1. 直接把当前 WebSnack 仓库导入到 Vercel
+2. 在 Vercel 项目的 Settings → Environment Variables 中添加环境变量：
    ```
    GITHUB_TOKEN=你的 GitHub Token
    REPO_OWNER=bigbaitoo
    REPO_NAME=WebSnack
    BASE_BRANCH=main
    ```
+3. 配置构建和部署设置：
+   - Build Command: `npm run build`
+   - Output Directory: `dist`
+   - Install Command: `npm install`
 4. 点击部署，部署完成后会得到一个类似 `https://your-project.vercel.app` 的地址
 
 ### 3. 配置前端
@@ -38,15 +41,15 @@ const response = await fetch('https://你的后端地址/api/upload', {
 
 ## 🔧 本地开发测试
 ```bash
-cd backend
 npm install
 npm run dev
 ```
-服务会运行在 http://localhost:3000
+前端服务运行在 http://localhost:5173
+API 接口运行在 http://localhost:3000/api/upload (需要单独运行后端服务)
 
 ## ✨ 工作流程
 1. 用户上传应用，选择"提交部署"
-2. 前端发送请求到后端服务
+2. 前端发送请求到后端服务 `/api/upload`
 3. 后端自动创建新的分支
 4. 把应用文件提交到新分支
 5. 自动更新首页导航，添加新应用
@@ -57,7 +60,7 @@ npm run dev
 
 ## 🛡️ 安全设置
 1. **内容审核**：所有用户提交的代码都需要你手动审核，确保没有恶意代码
-2. **文件大小限制**：默认限制 10MB，可以在代码中调整
+2. **文件大小限制**：默认限制 10MB，可以在 `api/upload.js` 中调整
 3. **CORS 配置**：默认允许所有来源，可以在代码中配置允许的域名
 4. **Token 权限**：GitHub Token 只需要 repo 权限，不要给其他多余的权限
 
