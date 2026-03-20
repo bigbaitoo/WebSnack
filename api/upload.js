@@ -29,6 +29,14 @@ export default async function handler(req, res) {
   try {
     const { appType, appName, appDescription, appIcon, files } = req.body
 
+    // 调试日志：检查接收到的内容
+    console.log('收到上传请求:', {
+      appName,
+      appType,
+      htmlLength: files?.html?.content?.length,
+      htmlStart: files?.html?.content?.slice(0, 100) // 只打印前100个字符
+    })
+
     // 验证必填字段
     if (!appType || !appName || !appDescription || !appIcon || !files || !files.html) {
       return res.status(400).json({ error: '缺少必填字段' })

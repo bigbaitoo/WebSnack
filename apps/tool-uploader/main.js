@@ -405,7 +405,7 @@ class AppUploader {
       const reader = new FileReader()
       reader.onload = () => resolve(reader.result)
       reader.onerror = reject
-      reader.readAsText(file)
+      reader.readAsText(file, 'UTF-8') // 指定 UTF-8 编码
     })
   }
 
