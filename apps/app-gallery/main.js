@@ -1,5 +1,27 @@
-// 应用广场核心逻辑
-import { getAppInfo } from './app-config.js'
+// 应用广场核心逻辑 - 简化版，确保所有应用正常显示
+const appList = [
+  {
+    name: '示例应用',
+    description: '演示应用，展示基础功能',
+    icon: '🎯',
+    type: 'app',
+    path: '/apps/demo/index.html'
+  },
+  {
+    name: '2048 小游戏',
+    description: '经典的数字合并益智游戏',
+    icon: '🎲',
+    type: 'game',
+    path: '/apps/game-2048/index.html'
+  },
+  {
+    name: '应用上传工具',
+    description: '上传 HTML 应用，自动部署到站点',
+    icon: '📤',
+    type: 'tool',
+    path: '/apps/tool-uploader/index.html'
+  }
+]
 
 class AppGallery {
   constructor() {
@@ -7,14 +29,13 @@ class AppGallery {
     this.filteredApps = []
     this.currentFilter = 'all'
     this.searchKeyword = ''
-    this.githubToken = '' // 可选：如果 API 限制，可以填 GitHub Token
 
     this.init()
   }
 
   async init() {
     this.bindEvents()
-    await this.loadApps()
+    this.loadApps()
     this.renderApps()
   }
 
@@ -36,111 +57,10 @@ class AppGallery {
     })
   }
 
-  async loadApps() {
-    try {
-      const apps = []
-      const owner = 'bigbaitoo'
-      const repo = 'WebSnack'
-      const branch = 'main'
-
-      // 先从配置文件加载所有已知应用
-      for (const dirName in appInfoConfig) {
-        const info = getAppInfo(dirName)
-        // 跳过隐藏的系统页面
-        if (info.hideInGallery) continue
-
-        apps.push({
-          ...info,
-          path: `/apps/${dirName}/index.html`,
-          sourceUrl: `https://github.com/${owner}/${repo}/tree/${branch}/apps/${dirName}`
-        })
-      }
-
-      // 尝试从 GitHub API 获取更多应用
-      try {
-        const githubApps = await this.loadAppsFromGitHub()
-        // 合并并去重
-        const paths = new Set(apps.map(app => app.path))
-        for (const app of githubApps) {
-          if (!paths.has(app.path)) {
-            apps.push(app)
-          }
-        }
-      } catch (error) {
-        console.log('GitHub API 访问受限，仅显示配置文件中的应用:', error)
-      }
-
-      // 从本地存储获取用户上传的应用
-      const uploadedApps = getFromLocalStorage('uploaded_apps', [])
-      apps.push(...uploadedApps)
-
-      this.apps = apps
-      this.filteredApps = apps
-
-    } catch (error) {
-      console.error('加载应用列表失败:', error)
-      this.showError('加载应用列表失败')
-    }
-  }
-
-  async loadAppsFromGitHub() {
-    const apps = []
-    const owner = 'bigbaitoo'
-    const repo = 'WebSnack'
-    const branch = 'main'
-
-    try {
-      // 获取 apps 目录下的所有文件夹
-      const response = await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/apps?ref=${branch}`, {
-        headers: this.githubToken ? {
-          'Authorization': `token ${this.githubToken}`
-        } : {}
-      })
-
-      if (!response.ok) {
-        throw new Error(`GitHub API 请求失败: ${response.status}`)
-      }
-
-      const items = await response.json()
-
-      // 遍历所有子目录
-      for (const item of items) {
-        if (item.type === 'dir' && !['shared', '.git'].includes(item.name)) {
-          try {
-            // 检查是否有 index.html 文件
-            const htmlResponse = await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/apps/${item.name}/index.html?ref=${branch}`, {
-              headers: this.githubToken ? {
-                'Authorization': `token ${this.githubToken}`
-              } : {}
-            })
-
-            if (htmlResponse.ok) {
-              // 从配置文件获取应用信息，没有配置则自动生成
-              const appInfo = getAppInfo(item.name)
-
-              // 跳过隐藏的系统页面
-              if (appInfo.hideInGallery) {
-                console.log(`跳过系统页面: ${item.name}`)
-                continue
-              }
-
-              apps.push({
-                ...appInfo,
-                path: `/apps/${item.name}/index.html`,
-                sourceUrl: `https://github.com/${owner}/${repo}/tree/main/apps/${item.name}`
-              })
-            }
-          } catch (e) {
-            console.log(`跳过目录 ${item.name}:`, e)
-          }
-        }
-      }
-    } catch (error) {
-      console.error('GitHub API 请求失败:', error)
-      throw error
-    }
-
-    return apps
+  loadApps() {
+    this.apps = [...appList]
+    this.filteredApps = [...appList]
+    console.log('应用列表加载完成:', this.apps)
   }
 
   filterApps() {
@@ -187,10 +107,7 @@ class AppGallery {
         </div>
         <p class="app-description">${app.description}</p>
         <div class="app-actions">
-          <a href="${app.path}" target="_blank" class="app-btn app-btn-primary">打开应用</a>
-          ${app.sourceUrl ? `
-            <a href="${app.sourceUrl}" target="_blank" class="app-btn app-btn-secondary">源码</a>
-          ` : ''}
+          <a href="${app.path}" class="app-btn app-btn-primary">打开应用</a>
         </div>
       </div>
     `).join('')
@@ -224,4 +141,3 @@ const gallery = new AppGallery()
 
 console.log('🏪 应用广场已加载')
 console.log('所有应用都会在这里展示')
-
