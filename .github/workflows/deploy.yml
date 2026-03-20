@@ -6,6 +6,9 @@ on:
       - main  # 你的主分支名，如果是 master 就改成 master
   workflow_dispatch: # 允许手动触发部署
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true # 启用 Node.js 24 支持
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
@@ -18,7 +21,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 24 # 更新到 Node.js 24
           cache: 'npm'
 
       - name: Install dependencies
