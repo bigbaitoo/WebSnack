@@ -39,42 +39,43 @@ class AppGallery {
   async loadApps() {
     try {
       const apps = []
+      const owner = 'bigbaitoo'
+      const repo = 'WebSnack'
+      const branch = 'main'
 
-      // 从 GitHub API 获取所有应用
+      // 先从配置文件加载所有已知应用
+      for (const dirName in appInfoConfig) {
+        const info = getAppInfo(dirName)
+        // 跳过隐藏的系统页面
+        if (info.hideInGallery) continue
+
+        apps.push({
+          ...info,
+          path: `/apps/${dirName}/index.html`,
+          sourceUrl: `https://github.com/${owner}/${repo}/tree/${branch}/apps/${dirName}`
+        })
+      }
+
+      // 尝试从 GitHub API 获取更多应用
       try {
         const githubApps = await this.loadAppsFromGitHub()
-        apps.push(...githubApps)
-      } catch (error) {
-        console.log('从 GitHub 加载应用失败，使用配置文件:', error)
-        // 如果 API 失败，从配置文件加载
-        for (const dirName in appInfoConfig) {
-          const info = getAppInfo(dirName)
-          // 跳过隐藏的系统页面
-          if (info.hideInGallery) continue
-
-          apps.push({
-            ...info,
-            path: `/apps/${dirName}/index.html`,
-            sourceUrl: `https://github.com/bigbaitoo/WebSnack/tree/main/apps/${dirName}`
-          })
+        // 合并并去重
+        const paths = new Set(apps.map(app => app.path))
+        for (const app of githubApps) {
+          if (!paths.has(app.path)) {
+            apps.push(app)
+          }
         }
+      } catch (error) {
+        console.log('GitHub API 访问受限，仅显示配置文件中的应用:', error)
       }
 
       // 从本地存储获取用户上传的应用
       const uploadedApps = getFromLocalStorage('uploaded_apps', [])
       apps.push(...uploadedApps)
 
-      // 去重
-      const uniqueApps = []
-      const paths = new Set()
-      for (const app of apps) {
-        if (!paths.has(app.path)) {
-          paths.add(app.path)
-          uniqueApps.push(app)
-        }
-      }
-      this.apps = uniqueApps
-      this.filteredApps = this.apps
+      this.apps = apps
+      this.filteredApps = apps
 
     } catch (error) {
       console.error('加载应用列表失败:', error)
