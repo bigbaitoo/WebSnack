@@ -49,6 +49,9 @@ class AppGallery {
         // 如果 API 失败，从配置文件加载
         for (const dirName in appInfoConfig) {
           const info = getAppInfo(dirName)
+          // 跳过隐藏的系统页面
+          if (info.hideInGallery) continue
+
           apps.push({
             ...info,
             path: `/apps/${dirName}/index.html`,
@@ -113,6 +116,12 @@ class AppGallery {
             if (htmlResponse.ok) {
               // 从配置文件获取应用信息，没有配置则自动生成
               const appInfo = getAppInfo(item.name)
+
+              // 跳过隐藏的系统页面
+              if (appInfo.hideInGallery) {
+                console.log(`跳过系统页面: ${item.name}`)
+                continue
+              }
 
               apps.push({
                 ...appInfo,
