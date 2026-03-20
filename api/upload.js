@@ -26,6 +26,15 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' })
   }
 
+  // 确保正确解析 JSON
+  if (typeof req.body === 'string') {
+    try {
+      req.body = JSON.parse(req.body)
+    } catch (e) {
+      return res.status(400).json({ error: 'JSON 解析失败' })
+    }
+  }
+
   try {
     const { appType, appName, appDescription, appIcon, files } = req.body
 
@@ -86,12 +95,40 @@ export default async function handler(req, res) {
     const treeItems = []
 
     // HTML 文件
-    treeItems.push({
-      path: `apps/${appDirName}/index.html`,
-      mode: '100644',
-      type: 'blob',
-      content: Buffer.from(files.html.content, 'utf8').toString('base64')
-    })
+    const htmlContent = files.html.content
+    console.log('准备提交的 HTML 内容前 200 字符:', htmlContent.slice(0, 200))
+
+    // 检查内容是否已经是 base64
+    const isBase64 = /^([A-Za-z0-9+/]{4})*([A-Za-z0-9+/]{3}=|[A-Za-z0-9+/]{2}==)?$/.test(htmlContent.trim())
+    if (isBase64) {
+      console.log('警告：HTML 内容已经是 Base64 编码')
+      // 尝试解码
+      try {
+        const decoded = Buffer.from(htmlContent, 'base64').toString('utf8')
+        console.log('解码后的内容:', decoded.slice(0, 200))
+        treeItems.push({
+          path: `apps/${appDirName}/index.html`,
+          mode: '100644',
+          type: 'blob',
+          content: htmlContent // 已经是 base64，直接用
+        })
+      } catch (e) {
+        console.log('Base64 解码失败，按普通文本处理')
+        treeItems.push({
+          path: `apps/${appDirName}/index.html`,
+          mode: '100644',
+          type: 'blob',
+          content: Buffer.from(htmlContent, 'utf8').toString('base64')
+        })
+      }
+    } else {
+      treeItems.push({
+        path: `apps/${appDirName}/index.html`,
+        mode: '100644',
+        type: 'blob',
+        content: Buffer.from(htmlContent, 'utf8').toString('base64')
+      })
+    }
 
     // CSS 文件
     if (files.css) {
