@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>应用上传工具 - WebSnack</title>
+  <link rel="stylesheet" href="../../shared/styles/global.css">
+  <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+  <div class="app-container">
+    <div class="app-header">
+      <a href="../../index.html" class="back-link">← 返回首页</a>
+      <h1>📤 应用上传工具</h1>
+    </div>
+
+    <div class="upload-container">
+      <div class="upload-form">
+        <div class="form-section">
+          <h2>基本信息</h2>
+
+          <div class="form-group">
+            <label for="appType">应用分类 *</label>
+            <select id="appType" required>
+              <option value="">请选择分类</option>
+              <option value="game">🎮 游戏类</option>
+              <option value="tool">🛠️ 工具类</option>
+              <option value="app">📱 应用类</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="appName">应用名称 *</label>
+            <input type="text" id="appName" placeholder="例如：2048 小游戏" required>
+          </div>
+
+          <div class="form-group">
+            <label for="appDescription">应用描述 *</label>
+            <textarea id="appDescription" rows="3" placeholder="简单描述应用的功能和特点" required></textarea>
+          </div>
+
+          <div class="form-group">
+            <label for="appIcon">应用图标 *</label>
+            <select id="appIcon" required>
+              <option value="🎮">🎮 游戏</option>
+              <option value="🛠️">🛠️ 工具</option>
+              <option value="📱">📱 应用</option>
+              <option value="🎯">🎯 目标</option>
+              <option value="🎲">🎲 骰子</option>
+              <option value="🧩">🧩 拼图</option>
+              <option value="🎨">🎨 创意</option>
+              <option value="⚡">⚡ 效率</option>
+              <option value="📊">📊 数据</option>
+              <option value="🔧">🔧 工具</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-section">
+          <h2>文件上传</h2>
+
+          <div class="form-group">
+            <label for="htmlFile">index.html 文件 *</label>
+            <div class="file-upload">
+              <input type="file" id="htmlFile" accept=".html" required>
+              <div class="file-preview" id="htmlPreview">
+                <span class="file-icon">📄</span>
+                <span class="file-name">未选择文件</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="cssFile">样式文件（可选）</label>
+            <div class="file-upload">
+              <input type="file" id="cssFile" accept=".css">
+              <div class="file-preview" id="cssPreview">
+                <span class="file-icon">🎨</span>
+                <span class="file-name">未选择文件</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="jsFile">脚本文件（可选）</label>
+            <div class="file-upload">
+              <input type="file" id="jsFile" accept=".js">
+              <div class="file-preview" id="jsPreview">
+                <span class="file-icon">⚙️</span>
+                <span class="file-name">未选择文件</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="assetFiles">其他资源文件（可选，图片、字体等）</label>
+            <div class="file-upload">
+              <input type="file" id="assetFiles" multiple accept="image/*,.ttf,.otf,.woff,.woff2,.svg">
+              <div class="file-preview" id="assetsPreview">
+                <span class="file-icon">📦</span>
+                <span class="file-name">未选择文件</span>
+              </div>
+            </div>
+            <small class="form-hint">支持图片、字体等资源文件，会保存到应用的 assets 目录下</small>
+          </div>
+        </div>
+
+        <div class="form-section">
+          <h2>GitHub 配置</h2>
+          <div class="form-group">
+            <label for="githubToken">GitHub Personal Access Token *</label>
+            <input type="password" id="githubToken" placeholder="ghp_xxxxxxxxxxxx" required>
+            <small class="form-hint">需要 repo 权限，仅用于提交文件到仓库，不会被存储</small>
+          </div>
+        </div>
+
+        <div class="form-actions">
+          <button type="button" id="previewBtn" class="btn btn-secondary">预览效果</button>
+          <button type="button" id="submitBtn" class="btn btn-primary">上传并部署</button>
+        </div>
+
+        <div class="status-message" id="statusMessage" style="display: none;"></div>
+      </div>
+
+      <div class="preview-section" id="previewSection" style="display: none;">
+        <h2>预览效果</h2>
+        <div class="preview-container">
+          <iframe id="previewFrame" sandbox="allow-scripts"></iframe>
+        </div>
+      </div>
+    </div>
+
+    <div class="progress-overlay" id="progressOverlay" style="display: none;">
+      <div class="progress-content">
+        <div class="progress-spinner"></div>
+        <h3>正在上传部署...</h3>
+        <p id="progressText">正在准备文件...</p>
+        <div class="progress-bar">
+          <div class="progress-fill" id="progressFill"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="success-modal" id="successModal" style="display: none;">
+      <div class="modal-content">
+        <div class="success-icon">🎉</div>
+        <h2>部署成功！</h2>
+        <p>应用已经成功上传并开始部署</p>
+        <div class="success-links">
+          <a href="" id="appLink" target="_blank" class="btn btn-primary">访问应用</a>
+          <button id="closeModalBtn" class="btn btn-secondary">关闭</button>
+        </div>
+        <small>部署大约需要 1-2 分钟后可以访问</small>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="./main.js"></script>
+</body>
+</html>
