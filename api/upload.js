@@ -77,6 +77,8 @@ export default async function handler(req, res) {
     const appDirName = generateAppDirName(appType, appName)
     const branchName = `add-app-${appDirName}-${Date.now()}`
 
+    console.log('创建新分支:', branchName)
+
     // 1. 获取最新的 base 分支 SHA
     const { data: baseBranch } = await octokit.rest.git.getRef({
       owner: REPO_OWNER,
@@ -93,77 +95,76 @@ export default async function handler(req, res) {
       sha: baseSha
     })
 
-    // 3. 准备要提交的文件
-    const treeItems = []
-
-    // HTML 文件
-    console.log('准备提交的 HTML 内容前 200 字符:', htmlContent.slice(0, 200))
-
-    // 检查内容是否已经是 base64
-    const isBase64 = /^([A-Za-z0-9+/]{4})*([A-Za-z0-9+/]{3}=|[A-Za-z0-9+/]{2}==)?$/.test(htmlContent.trim())
-    if (isBase64) {
-      console.log('警告：HTML 内容已经是 Base64 编码')
-      // 尝试解码
-      try {
-        const decoded = Buffer.from(htmlContent, 'base64').toString('utf8')
-        console.log('解码后的内容:', decoded.slice(0, 200))
-        treeItems.push({
-          path: `apps/${appDirName}/index.html`,
-          mode: '100644',
-          type: 'blob',
-          content: htmlContent // 已经是 base64，直接用
-        })
-      } catch (e) {
-        console.log('Base64 解码失败，按普通文本处理')
-        treeItems.push({
-          path: `apps/${appDirName}/index.html`,
-          mode: '100644',
-          type: 'blob',
-          content: Buffer.from(htmlContent, 'utf8').toString('base64')
-        })
+    // 3. 提交 HTML 文件
+    console.log('提交 HTML 文件...')
+    await octokit.rest.repos.createOrUpdateFileContents({
+      owner: REPO_OWNER,
+      repo: REPO_NAME,
+      path: `apps/${appDirName}/index.html`,
+      message: `feat: 添加 ${appName} 应用`,
+      content: Buffer.from(htmlContent, 'utf8').toString('base64'),
+      branch: branchName,
+      committer: {
+        name: 'WebSnack Uploader',
+        email: 'uploader@websnack.app'
       }
-    } else {
-      treeItems.push({
-        path: `apps/${appDirName}/index.html`,
-        mode: '100644',
-        type: 'blob',
-        content: Buffer.from(htmlContent, 'utf8').toString('base64')
-      })
-    }
+    })
 
-    // CSS 文件
+    // 4. 提交 CSS 文件（如果有）
     if (files.css) {
-      treeItems.push({
+      console.log('提交 CSS 文件...')
+      await octokit.rest.repos.createOrUpdateFileContents({
+        owner: REPO_OWNER,
+        repo: REPO_NAME,
         path: `apps/${appDirName}/style.css`,
-        mode: '100644',
-        type: 'blob',
-        content: Buffer.from(files.css.content, 'utf8').toString('base64')
+        message: `feat: 添加 ${appName} 样式`,
+        content: Buffer.from(files.css.content, 'utf8').toString('base64'),
+        branch: branchName,
+        committer: {
+          name: 'WebSnack Uploader',
+          email: 'uploader@websnack.app'
+        }
       })
     }
 
-    // JS 文件
+    // 5. 提交 JS 文件（如果有）
     if (files.js) {
-      treeItems.push({
+      console.log('提交 JS 文件...')
+      await octokit.rest.repos.createOrUpdateFileContents({
+        owner: REPO_OWNER,
+        repo: REPO_NAME,
         path: `apps/${appDirName}/main.js`,
-        mode: '100644',
-        type: 'blob',
-        content: Buffer.from(files.js.content, 'utf8').toString('base64')
+        message: `feat: 添加 ${appName} 脚本`,
+        content: Buffer.from(files.js.content, 'utf8').toString('base64'),
+        branch: branchName,
+        committer: {
+          name: 'WebSnack Uploader',
+          email: 'uploader@websnack.app'
+        }
       })
     }
 
-    // 资源文件
+    // 6. 提交资源文件（如果有）
     if (files.assets && files.assets.length > 0) {
+      console.log('提交资源文件...')
       for (const asset of files.assets) {
-        treeItems.push({
+        await octokit.rest.repos.createOrUpdateFileContents({
+          owner: REPO_OWNER,
+          repo: REPO_NAME,
           path: `apps/${appDirName}/assets/${asset.name}`,
-          mode: '100644',
-          type: 'blob',
-          content: asset.content.split(',')[1] // 去掉 base64 前缀
+          message: `feat: 添加 ${appName} 资源 ${asset.name}`,
+          content: asset.content.split(',')[1], // 去掉 base64 前缀
+          branch: branchName,
+          committer: {
+            name: 'WebSnack Uploader',
+            email: 'uploader@websnack.app'
+          }
         })
       }
     }
 
-    // 4. 更新首页导航
+    // 7. 更新首页导航
+    console.log('更新首页导航...')
     const { data: indexFile } = await octokit.rest.repos.getContent({
       owner: REPO_OWNER,
       repo: REPO_NAME,
@@ -172,6 +173,7 @@ export default async function handler(req, res) {
     })
 
     let indexContent = Buffer.from(indexFile.content, 'base64').toString('utf8')
+    const originalIndexSha = indexFile.sha
 
     // 安全检查：确保首页修改只是添加应用，不会破坏原有结构
     const originalAppCount = (indexContent.match(/<a href="apps\//g) || []).length
@@ -188,39 +190,23 @@ export default async function handler(req, res) {
       throw new Error('首页结构被恶意修改，拒绝提交')
     }
 
-    treeItems.push({
+    // 提交首页修改
+    await octokit.rest.repos.createOrUpdateFileContents({
+      owner: REPO_OWNER,
+      repo: REPO_NAME,
       path: 'index.html',
-      mode: '100644',
-      type: 'blob',
-      content: Buffer.from(indexContent, 'utf8').toString('base64')
-    })
-
-    // 5. 创建新的 tree
-    const { data: newTree } = await octokit.rest.git.createTree({
-      owner: REPO_OWNER,
-      repo: REPO_NAME,
-      base_tree: baseSha,
-      tree: treeItems
-    })
-
-    // 6. 创建 commit
-    const { data: newCommit } = await octokit.rest.git.createCommit({
-      owner: REPO_OWNER,
-      repo: REPO_NAME,
-      message: `feat: 添加新应用 ${appName}`,
-      tree: newTree.sha,
-      parents: [baseSha]
-    })
-
-    // 7. 更新分支
-    await octokit.rest.git.updateRef({
-      owner: REPO_OWNER,
-      repo: REPO_NAME,
-      ref: `heads/${branchName}`,
-      sha: newCommit.sha
+      message: `feat: 添加 ${appName} 到首页导航`,
+      content: Buffer.from(indexContent, 'utf8').toString('base64'),
+      sha: originalIndexSha,
+      branch: branchName,
+      committer: {
+        name: 'WebSnack Uploader',
+        email: 'uploader@websnack.app'
+      }
     })
 
     // 8. 创建 Pull Request
+    console.log('创建 Pull Request...')
     const { data: pr } = await octokit.rest.pulls.create({
       owner: REPO_OWNER,
       repo: REPO_NAME,
@@ -234,7 +220,15 @@ export default async function handler(req, res) {
 - **图标**: ${appIcon}
 - **目录**: \`apps/${appDirName}\`
 
-自动生成的 PR，请审核后合并。`
+自动生成的 PR，请审核后合并。
+
+### 文件变更:
+- \`apps/${appDirName}/index.html\` - 应用主页面
+${files.css ? `- \`apps/${appDirName}/style.css\` - 样式文件\n` : ''}
+${files.js ? `- \`apps/${appDirName}/main.js\` - 脚本文件\n` : ''}
+${files.assets?.length ? `- \`apps/${appDirName}/assets/*\` - 资源文件\n` : ''}
+- \`index.html\` - 新增导航链接
+`
     })
 
     res.status(200).json({
