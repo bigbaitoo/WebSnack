@@ -163,49 +163,7 @@ export default async function handler(req, res) {
       }
     }
 
-    // 7. 更新首页导航
-    console.log('更新首页导航...')
-    const { data: indexFile } = await octokit.rest.repos.getContent({
-      owner: REPO_OWNER,
-      repo: REPO_NAME,
-      path: 'index.html',
-      ref: BASE_BRANCH
-    })
-
-    let indexContent = Buffer.from(indexFile.content, 'base64').toString('utf8')
-    const originalIndexSha = indexFile.sha
-
-    // 安全检查：确保首页修改只是添加应用，不会破坏原有结构
-    const originalAppCount = (indexContent.match(/<a href="apps\//g) || []).length
-    indexContent = addAppToNavigation(indexContent, appType, appDirName, appName, appDescription, appIcon)
-    const newAppCount = (indexContent.match(/<a href="apps\//g) || []).length
-
-    // 确保只新增了一个应用链接
-    if (newAppCount !== originalAppCount + 1) {
-      throw new Error('首页内容修改异常，拒绝提交')
-    }
-
-    // 确保首页其他结构没有被修改
-    if (!indexContent.includes('<title>WebSnack') || !indexContent.includes('🍿 WebSnack') || !indexContent.includes('🎮 小游戏')) {
-      throw new Error('首页结构被恶意修改，拒绝提交')
-    }
-
-    // 提交首页修改
-    await octokit.rest.repos.createOrUpdateFileContents({
-      owner: REPO_OWNER,
-      repo: REPO_NAME,
-      path: 'index.html',
-      message: `feat: 添加 ${appName} 到首页导航`,
-      content: Buffer.from(indexContent, 'utf8').toString('base64'),
-      sha: originalIndexSha,
-      branch: branchName,
-      committer: {
-        name: 'WebSnack Uploader',
-        email: 'uploader@websnack.app'
-      }
-    })
-
-    // 8. 创建 Pull Request
+    // 7. 创建 Pull Request - 不再修改首页！
     console.log('创建 Pull Request...')
     const { data: pr } = await octokit.rest.pulls.create({
       owner: REPO_OWNER,
@@ -219,15 +177,15 @@ export default async function handler(req, res) {
 - **描述**: ${appDescription}
 - **图标**: ${appIcon}
 - **目录**: \`apps/${appDirName}\`
+- **访问地址**: 合并后访问 \`/apps/${appDirName}/index.html\`
 
-自动生成的 PR，请审核后合并。
+自动生成的 PR，请审核后合并。合并后需要手动添加到首页导航。
 
 ### 文件变更:
 - \`apps/${appDirName}/index.html\` - 应用主页面
 ${files.css ? `- \`apps/${appDirName}/style.css\` - 样式文件\n` : ''}
 ${files.js ? `- \`apps/${appDirName}/main.js\` - 脚本文件\n` : ''}
 ${files.assets?.length ? `- \`apps/${appDirName}/assets/*\` - 资源文件\n` : ''}
-- \`index.html\` - 新增导航链接
 `
     })
 
@@ -253,26 +211,4 @@ function generateAppDirName(type, name) {
     .replace(/\s+/g, '-')
     .replace(/[^a-z0-9-]/g, '')
   return `${type}-${kebabName}`
-}
-
-function addAppToNavigation(content, appType, appDirName, appName, appDescription, appIcon) {
-  const categoryMap = {
-    'game': '🎮 小游戏',
-    'tool': '🛠️ 工具集',
-    'app': '📱 实用应用',
-    'ru': '🌍 语言专区'
-  }
-
-  const categoryTitle = categoryMap[appType]
-  const newAppLink = `
-          <a href="apps/${appDirName}/index.html" class="app-card">
-            <div class="app-icon">${appIcon}</div>
-            <div class="app-info">
-              <h3>${appName}</h3>
-              <p>${appDescription}</p>
-            </div>
-          </a>`
-
-  const categoryPattern = new RegExp(`(<section class="category">[\\s\\S]*?<h2>${categoryTitle}</h2>[\\s\\S]*?<div class="app-grid">)`)
-  return content.replace(categoryPattern, `$1${newAppLink}`)
 }
