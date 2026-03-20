@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>示例应用 - WebSnack</title>
+  <link rel="stylesheet" href="/shared/styles/global.css">
+  <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+  <div class="app-container">
+    <div class="app-header">
+      <a href="/" class="back-link">← 返回首页</a>
+      <h1>🎯 示例应用</h1>
+    </div>
+
+    <div class="demo-content">
+      <h2>欢迎使用 WebSnack 示例应用</h2>
+      <p>这是一个演示应用，展示如何在这个项目中创建新应用。</p>
+
+      <div class="demo-features">
+        <div class="feature-card">
+          <h3>✨ 特性</h3>
+          <ul>
+            <li>独立的应用目录结构</li>
+            <li>可以使用任意前端技术栈</li>
+            <li>共享公共组件和工具函数</li>
+            <li>自动构建和部署到 GitHub Pages</li>
+          </ul>
+        </div>
+
+        <div class="feature-card">
+          <h3>🛠️ 创建新应用</h3>
+          <ol>
+            <li>在 <code>apps/</code> 目录下新建应用目录</li>
+            <li>创建 <code>index.html</code> 作为入口</li>
+            <li>开发你的应用</li>
+            <li>在首页添加应用入口链接</li>
+          </ol>
+        </div>
+      </div>
+
+      <div class="demo-counter">
+        <p>点击计数：<span id="counter">0</span></p>
+        <button id="incrementBtn" class="btn">点击 +1</button>
+        <button id="saveBtn" class="btn btn-secondary">保存到本地</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="./main.js"></script>
+</body>
+</html>
