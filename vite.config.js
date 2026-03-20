@@ -41,6 +41,6 @@ export default defineConfig({
       }
     }
   },
-  // GitHub Pages 部署配置，如果部署到自定义域名可以去掉
-  base: process.env.NODE_ENV === 'production' ? '/WebSnack/' : '/',
+  // 相对路径配置，适配所有部署环境
+  base: './',
 })
