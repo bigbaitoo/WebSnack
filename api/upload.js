@@ -36,17 +36,18 @@ export default async function handler(req, res) {
 
     // 安全检查：验证文件内容
     const htmlContent = files.html.content
-    if (htmlContent.includes('PCFET0NUWVBFIGh0bWw+') || htmlContent.includes('base64') || htmlContent.length < 50) {
-      return res.status(400).json({ error: 'HTML 文件内容不合法' })
+    // 检查是否是正常的 HTML 文件
+    if (!htmlContent.trim().startsWith('<!DOCTYPE html') && !htmlContent.trim().startsWith('<html')) {
+      return res.status(400).json({ error: 'HTML 文件格式不正确，必须以 <!DOCTYPE html> 或 <html> 开头' })
     }
 
-    // 防止恶意脚本
-    if (htmlContent.includes('<script') && !htmlContent.includes('type="module"') && !htmlContent.includes('src=')) {
-      return res.status(400).json({ error: 'HTML 文件包含不安全的脚本' })
+    // 防止空文件或过小的文件
+    if (htmlContent.length < 100) {
+      return res.status(400).json({ error: 'HTML 文件内容过短' })
     }
 
-    // 检查是否包含恶意代码特征
-    const maliciousPatterns = ['eval(', 'atob(', 'btoa(', 'document.write', 'window.location', 'fetch(', 'XMLHttpRequest']
+    // 检查是否包含恶意代码特征（放宽规则，只阻止明显的恶意行为）
+    const maliciousPatterns = ['PCFET0NUWVBFIGh0bWw+', 'atob(', 'eval(', 'Function(', 'new Function']
     for (const pattern of maliciousPatterns) {
       if (htmlContent.includes(pattern)) {
         return res.status(400).json({ error: `HTML 文件包含不安全的代码: ${pattern}` })
@@ -81,7 +82,7 @@ export default async function handler(req, res) {
       path: `apps/${appDirName}/index.html`,
       mode: '100644',
       type: 'blob',
-      content: Buffer.from(files.html.content).toString('base64')
+      content: Buffer.from(files.html.content, 'utf8').toString('base64')
     })
 
     // CSS 文件
@@ -90,7 +91,7 @@ export default async function handler(req, res) {
         path: `apps/${appDirName}/style.css`,
         mode: '100644',
         type: 'blob',
-        content: Buffer.from(files.css.content).toString('base64')
+        content: Buffer.from(files.css.content, 'utf8').toString('base64')
       })
     }
 
@@ -100,7 +101,7 @@ export default async function handler(req, res) {
         path: `apps/${appDirName}/main.js`,
         mode: '100644',
         type: 'blob',
-        content: Buffer.from(files.js.content).toString('base64')
+        content: Buffer.from(files.js.content, 'utf8').toString('base64')
       })
     }
 
