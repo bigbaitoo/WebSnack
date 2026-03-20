@@ -5,21 +5,35 @@ const appList = [
     description: '演示应用，展示基础功能',
     icon: '🎯',
     type: 'app',
-    path: '/apps/demo/index.html'
+    path: '../demo/index.html'
   },
   {
     name: '2048 小游戏',
     description: '经典的数字合并益智游戏',
     icon: '🎲',
     type: 'game',
-    path: '/apps/game-2048/index.html'
+    path: '../game-2048/index.html'
   },
   {
     name: '应用上传工具',
     description: '上传 HTML 应用，自动部署到站点',
     icon: '📤',
     type: 'tool',
-    path: '/apps/tool-uploader/index.html'
+    path: '../tool-uploader/index.html'
+  },
+  {
+    name: '俄语单词卡',
+    description: '俄语词汇学习卡片，含音频朗读',
+    icon: '🇷🇺',
+    type: 'ru',
+    path: '../ru-/index.html'
+  },
+  {
+    name: '赤色要塞',
+    description: '网页版策略游戏',
+    icon: '🏰',
+    type: 'game',
+    path: '../game-/index.html'
   }
 ]
 
