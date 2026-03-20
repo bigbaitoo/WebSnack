@@ -1,4 +1,6 @@
 // 应用广场核心逻辑
+import { getAppInfo } from './app-config.js'
+
 class AppGallery {
   constructor() {
     this.apps = []
@@ -36,70 +38,33 @@ class AppGallery {
 
   async loadApps() {
     try {
-      // 先获取内置的应用列表
-      const builtInApps = [
-        {
-          name: '示例应用',
-          description: '演示应用，展示基础功能',
-          icon: '🎯',
-          type: 'app',
-          path: '/apps/demo/index.html'
-        },
-        {
-          name: '2048 小游戏',
-          description: '经典的数字合并益智游戏',
-          icon: '🎲',
-          type: 'game',
-          path: '/apps/game-2048/index.html'
-        },
-        {
-          name: '应用上传工具',
-          description: '上传 HTML 应用，自动部署到站点',
-          icon: '📤',
-          type: 'tool',
-          path: '/apps/tool-uploader/index.html'
-        },
-        {
-          name: '应用广场',
-          description: '浏览和搜索所有已上传的应用',
-          icon: '🏪',
-          type: 'tool',
-          path: '/apps/app-gallery/index.html'
-        },
-        {
-          name: '游戏专区',
-          description: '所有小游戏合集，随时打开随时玩',
-          icon: '🎮',
-          type: 'game',
-          path: '/apps/games/index.html'
-        },
-        {
-          name: '俄语专区',
-          description: 'Русская секция - 俄语应用和游戏集合',
-          icon: '🇷🇺',
-          type: 'ru',
-          path: '/apps/ru/index.html'
-        }
-      ]
+      const apps = []
 
-      this.apps = [...builtInApps]
-
-      // 尝试从 GitHub API 获取更多应用
+      // 从 GitHub API 获取所有应用
       try {
         const githubApps = await this.loadAppsFromGitHub()
-        this.apps = [...builtInApps, ...githubApps]
+        apps.push(...githubApps)
       } catch (error) {
-        console.log('从 GitHub 加载应用失败，使用内置列表:', error)
+        console.log('从 GitHub 加载应用失败，使用配置文件:', error)
+        // 如果 API 失败，从配置文件加载
+        for (const dirName in appInfoConfig) {
+          const info = getAppInfo(dirName)
+          apps.push({
+            ...info,
+            path: `/apps/${dirName}/index.html`,
+            sourceUrl: `https://github.com/bigbaitoo/WebSnack/tree/main/apps/${dirName}`
+          })
+        }
       }
 
       // 从本地存储获取用户上传的应用
       const uploadedApps = getFromLocalStorage('uploaded_apps', [])
-      this.apps = [...this.apps, ...uploadedApps]
+      apps.push(...uploadedApps)
 
       // 去重
       const uniqueApps = []
       const paths = new Set()
-      for (const app of this.apps) {
+      for (const app of apps) {
         if (!paths.has(app.path)) {
           paths.add(app.path)
           uniqueApps.push(app)
@@ -146,42 +111,11 @@ class AppGallery {
             })
 
             if (htmlResponse.ok) {
-              // 尝试从目录名判断类型
-              let type = 'app'
-              let icon = '📱'
-              let name = item.name
-
-              if (item.name.startsWith('game-')) {
-                type = 'game'
-                icon = '🎮'
-                name = item.name.replace('game-', '')
-              } else if (item.name.startsWith('tool-')) {
-                type = 'tool'
-                icon = '🛠️'
-                name = item.name.replace('tool-', '')
-              } else if (item.name.startsWith('app-')) {
-                type = 'app'
-                icon = '📱'
-                name = item.name.replace('app-', '')
-              } else if (item.name === 'ru') {
-                type = 'ru'
-                icon = '🇷🇺'
-                name = '俄语专区'
-              } else if (item.name === 'games') {
-                type = 'game'
-                icon = '🎮'
-                name = '游戏专区'
-              }
-
-              // 转换为友好的名称
-              name = name.replace(/-/g, ' ')
-              name = name.charAt(0).toUpperCase() + name.slice(1)
+              // 从配置文件获取应用信息，没有配置则自动生成
+              const appInfo = getAppInfo(item.name)
 
               apps.push({
-                name: name,
-                description: '用户上传的应用',
-                icon: icon,
-                type: type,
+                ...appInfo,
                 path: `/apps/${item.name}/index.html`,
                 sourceUrl: `https://github.com/${owner}/${repo}/tree/main/apps/${item.name}`
               })
