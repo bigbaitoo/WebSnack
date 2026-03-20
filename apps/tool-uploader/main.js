@@ -1,3 +1,7 @@
+// 应用上传工具核心逻辑 - 本地存储版本
+import { generateRandomId } from '@shared/utils/common.js'
+import { saveToLocalStorage, getFromLocalStorage } from '@shared/utils/storage.js'
+
 // 配置项 - 部署后修改为你的实际后端地址
 const API_BASE_URL = '' // 留空表示同域名，或者填写完整地址如 'https://your-project.vercel.app'
 
