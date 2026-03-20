@@ -123,6 +123,16 @@ class AppUploader {
     const formData = this.validateForm()
     if (!formData) return
 
+    const deployType = document.getElementById('deployType').value
+
+    if (deployType === 'deploy') {
+      await this.deployToServer(formData)
+    } else {
+      await this.saveToLocal(formData)
+    }
+  }
+
+  async saveToLocal(formData) {
     try {
       this.showProgress('正在处理文件...', 30)
 
@@ -143,12 +153,81 @@ class AppUploader {
       this.updateLocalNavigation(appData)
 
       this.hideProgress()
-      this.showSuccess(appData)
+      this.showSuccess(appData, 'local')
 
     } catch (error) {
       console.error('保存失败:', error)
       this.hideProgress()
       this.showStatus('保存失败: ' + error.message, 'error')
+    }
+  }
+
+  async deployToServer(formData) {
+    try {
+      this.showProgress('正在上传到服务器...', 20)
+
+      // 读取所有文件内容
+      const files = {
+        html: {
+          name: this.files.html.name,
+          content: await this.readFileAsText(this.files.html)
+        }
+      }
+
+      if (this.files.css) {
+        files.css = {
+          name: this.files.css.name,
+          content: await this.readFileAsText(this.files.css)
+        }
+      }
+
+      if (this.files.js) {
+        files.js = {
+          name: this.files.js.name,
+          content: await this.readFileAsText(this.files.js)
+        }
+      }
+
+      if (this.files.assets.length > 0) {
+        files.assets = []
+        for (const asset of this.files.assets) {
+          files.assets.push({
+            name: asset.name,
+            content: await this.readFileAsBase64(asset)
+          })
+        }
+      }
+
+      this.showProgress('正在提交审核...', 60)
+
+      // 发送到后端接口
+      const response = await fetch('https://你的后端地址/api/upload', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          ...formData,
+          files: files
+        })
+      })
+
+      const result = await response.json()
+
+      if (!response.ok) {
+        throw new Error(result.message || '部署失败')
+      }
+
+      this.hideProgress()
+      this.showSuccess({
+        url: result.appUrl,
+        prUrl: result.prUrl
+      }, 'deploy')
+
+    } catch (error) {
+      console.error('部署失败:', error)
+      this.hideProgress()
+      this.showStatus('部署失败: ' + error.message, 'error')
     }
   }
 
@@ -359,8 +438,22 @@ class AppUploader {
     document.getElementById('progressOverlay').style.display = 'none'
   }
 
-  showSuccess(appData) {
+  showSuccess(appData, type = 'local') {
     document.getElementById('appLink').href = appData.url
+
+    if (type === 'deploy') {
+      document.getElementById('successTitle').textContent = '提交成功！'
+      document.getElementById('successMessage').textContent = '应用已提交审核，审核通过后会自动部署上线'
+      document.getElementById('prLink').href = appData.prUrl
+      document.getElementById('prLink').style.display = 'inline-block'
+      document.getElementById('successNote').textContent = '你可以查看 PR 了解审核进度，审核通过后 1-2 分钟即可访问'
+    } else {
+      document.getElementById('successTitle').textContent = '保存成功！'
+      document.getElementById('successMessage').textContent = '应用已经保存到本地'
+      document.getElementById('prLink').style.display = 'none'
+      document.getElementById('successNote').textContent = '应用保存在浏览器本地，清除浏览器数据会丢失'
+    }
+
     document.getElementById('successModal').style.display = 'flex'
   }
 }
