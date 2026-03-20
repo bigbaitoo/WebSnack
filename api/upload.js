@@ -9,34 +9,36 @@ const BASE_BRANCH = process.env.BASE_BRANCH || 'main'
 const octokit = new Octokit({ auth: GITHUB_TOKEN })
 
 export default async function handler(req, res) {
-  // 处理 CORS
-  res.setHeader('Access-Control-Allow-Credentials', true)
-  res.setHeader('Access-Control-Allow-Origin', '*')
-  res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT')
-  res.setHeader(
-    'Access-Control-Allow-Headers',
-    'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version'
-  )
-
-  if (req.method === 'OPTIONS') {
-    return res.status(200).end()
-  }
-
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' })
-  }
-
-  // 确保正确解析 JSON
-  if (typeof req.body === 'string') {
-    try {
-      req.body = JSON.parse(req.body)
-    } catch (e) {
-      return res.status(400).json({ error: 'JSON 解析失败' })
-    }
-  }
-
   try {
-    const { appType, appName, appDescription, appIcon, files } = req.body
+    // 处理 CORS
+    res.setHeader('Access-Control-Allow-Credentials', true)
+    res.setHeader('Access-Control-Allow-Origin', '*')
+    res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT')
+    res.setHeader(
+      'Access-Control-Allow-Headers',
+      'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version'
+    )
+
+    if (req.method === 'OPTIONS') {
+      return res.status(200).end()
+    }
+
+    if (req.method !== 'POST') {
+      return res.status(405).json({ error: 'Method not allowed' })
+    }
+
+    // 确保正确解析 JSON
+    let body = req.body
+    if (typeof body === 'string') {
+      try {
+        body = JSON.parse(body)
+      } catch (e) {
+        console.error('JSON 解析失败:', e)
+        return res.status(400).json({ error: 'JSON 解析失败，请检查请求格式' })
+      }
+    }
+
+    const { appType, appName, appDescription, appIcon, files } = body
 
     // 调试日志：检查接收到的内容
     console.log('收到上传请求:', {
@@ -95,7 +97,6 @@ export default async function handler(req, res) {
     const treeItems = []
 
     // HTML 文件
-    const htmlContent = files.html.content
     console.log('准备提交的 HTML 内容前 200 字符:', htmlContent.slice(0, 200))
 
     // 检查内容是否已经是 base64
@@ -191,7 +192,7 @@ export default async function handler(req, res) {
       path: 'index.html',
       mode: '100644',
       type: 'blob',
-      content: Buffer.from(indexContent).toString('base64')
+      content: Buffer.from(indexContent, 'utf8').toString('base64')
     })
 
     // 5. 创建新的 tree
@@ -247,7 +248,7 @@ export default async function handler(req, res) {
     console.error('部署失败:', error)
     res.status(500).json({
       error: '部署失败',
-      message: error.message
+      message: error.message || '服务器内部错误'
     })
   }
 }
