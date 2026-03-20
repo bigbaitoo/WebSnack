@@ -5,6 +5,7 @@ class AppGallery {
     this.filteredApps = []
     this.currentFilter = 'all'
     this.searchKeyword = ''
+    this.githubToken = '' // 可选：如果 API 限制，可以填 GitHub Token
 
     this.init()
   }
@@ -35,10 +36,7 @@ class AppGallery {
 
   async loadApps() {
     try {
-      // 先获取目录结构
-      const apps = []
-
-      // 内置的应用列表
+      // 先获取内置的应用列表
       const builtInApps = [
         {
           name: '示例应用',
@@ -62,6 +60,20 @@ class AppGallery {
           path: '/apps/tool-uploader/index.html'
         },
         {
+          name: '应用广场',
+          description: '浏览和搜索所有已上传的应用',
+          icon: '🏪',
+          type: 'tool',
+          path: '/apps/app-gallery/index.html'
+        },
+        {
+          name: '游戏专区',
+          description: '所有小游戏合集，随时打开随时玩',
+          icon: '🎮',
+          type: 'game',
+          path: '/apps/games/index.html'
+        },
+        {
           name: '俄语专区',
           description: 'Русская секция - 俄语应用和游戏集合',
           icon: '🇷🇺',
@@ -70,22 +82,121 @@ class AppGallery {
         }
       ]
 
-      apps.push(...builtInApps)
+      this.apps = [...builtInApps]
 
-      // TODO: 后续可以通过 GitHub API 获取 apps 目录下的所有应用
-      // 现在先显示内置应用 + 本地存储的上传记录
+      // 尝试从 GitHub API 获取更多应用
+      try {
+        const githubApps = await this.loadAppsFromGitHub()
+        this.apps = [...builtInApps, ...githubApps]
+      } catch (error) {
+        console.log('从 GitHub 加载应用失败，使用内置列表:', error)
+      }
 
       // 从本地存储获取用户上传的应用
       const uploadedApps = getFromLocalStorage('uploaded_apps', [])
-      apps.push(...uploadedApps)
+      this.apps = [...this.apps, ...uploadedApps]
 
-      this.apps = apps
-      this.filteredApps = apps
+      // 去重
+      const uniqueApps = []
+      const paths = new Set()
+      for (const app of this.apps) {
+        if (!paths.has(app.path)) {
+          paths.add(app.path)
+          uniqueApps.push(app)
+        }
+      }
+      this.apps = uniqueApps
+      this.filteredApps = this.apps
 
     } catch (error) {
       console.error('加载应用列表失败:', error)
       this.showError('加载应用列表失败')
     }
+  }
+
+  async loadAppsFromGitHub() {
+    const apps = []
+    const owner = 'bigbaitoo'
+    const repo = 'WebSnack'
+    const branch = 'main'
+
+    try {
+      // 获取 apps 目录下的所有文件夹
+      const response = await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/apps?ref=${branch}`, {
+        headers: this.githubToken ? {
+          'Authorization': `token ${this.githubToken}`
+        } : {}
+      })
+
+      if (!response.ok) {
+        throw new Error(`GitHub API 请求失败: ${response.status}`)
+      }
+
+      const items = await response.json()
+
+      // 遍历所有子目录
+      for (const item of items) {
+        if (item.type === 'dir' && !['shared', '.git'].includes(item.name)) {
+          try {
+            // 检查是否有 index.html 文件
+            const htmlResponse = await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/apps/${item.name}/index.html?ref=${branch}`, {
+              headers: this.githubToken ? {
+                'Authorization': `token ${this.githubToken}`
+              } : {}
+            })
+
+            if (htmlResponse.ok) {
+              // 尝试从目录名判断类型
+              let type = 'app'
+              let icon = '📱'
+              let name = item.name
+
+              if (item.name.startsWith('game-')) {
+                type = 'game'
+                icon = '🎮'
+                name = item.name.replace('game-', '')
+              } else if (item.name.startsWith('tool-')) {
+                type = 'tool'
+                icon = '🛠️'
+                name = item.name.replace('tool-', '')
+              } else if (item.name.startsWith('app-')) {
+                type = 'app'
+                icon = '📱'
+                name = item.name.replace('app-', '')
+              } else if (item.name === 'ru') {
+                type = 'ru'
+                icon = '🇷🇺'
+                name = '俄语专区'
+              } else if (item.name === 'games') {
+                type = 'game'
+                icon = '🎮'
+                name = '游戏专区'
+              }
+
+              // 转换为友好的名称
+              name = name.replace(/-/g, ' ')
+              name = name.charAt(0).toUpperCase() + name.slice(1)
+
+              apps.push({
+                name: name,
+                description: '用户上传的应用',
+                icon: icon,
+                type: type,
+                path: `/apps/${item.name}/index.html`,
+                sourceUrl: `https://github.com/${owner}/${repo}/tree/main/apps/${item.name}`
+              })
+            }
+          } catch (e) {
+            console.log(`跳过目录 ${item.name}:`, e)
+          }
+        }
+      }
+    } catch (error) {
+      console.error('GitHub API 请求失败:', error)
+      throw error
+    }
+
+    return apps
   }
 
   filterApps() {
@@ -169,3 +280,4 @@ const gallery = new AppGallery()
 
 console.log('🏪 应用广场已加载')
 console.log('所有应用都会在这里展示')
+
